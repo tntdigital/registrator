@@ -84,7 +84,10 @@ func (r *ConsulMetaAdapter) Register(service *bridge.Service) error {
 func (r *ConsulMetaAdapter) buildCheck(service *bridge.Service) *consulapi.AgentServiceCheck {
 	check := new(consulapi.AgentServiceCheck)
 	if path := service.Attrs["check_http"]; path != "" {
-		check.Script = fmt.Sprintf("check-http %s %s %s", service.Origin.ContainerID[:12], service.Origin.ExposedPort, path)
+		check.HTTP = fmt.Sprintf("http://%s:%d%s", service.IP, service.Port, path)
+		if timeout := service.Attrs["check_timeout"]; timeout != "" {
+			check.Timeout = timeout
+		}
 	} else if cmd := service.Attrs["check_cmd"]; cmd != "" {
 		check.Script = fmt.Sprintf("check-cmd %s %s %s", service.Origin.ContainerID[:12], service.Origin.ExposedPort, cmd)
 	} else if script := service.Attrs["check_script"]; script != "" {
@@ -94,7 +97,7 @@ func (r *ConsulMetaAdapter) buildCheck(service *bridge.Service) *consulapi.Agent
 	} else {
 		return nil
 	}
-	if check.Script != "" {
+	if check.Script != "" || check.HTTP != "" {
 		if interval := service.Attrs["check_interval"]; interval != "" {
 			check.Interval = interval
 		} else {
