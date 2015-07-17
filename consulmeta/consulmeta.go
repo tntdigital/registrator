@@ -106,11 +106,8 @@ func (r *ConsulMetaAdapter) buildCheck(service *bridge.Service) *consulapi.Agent
 
 func (r *ConsulMetaAdapter) Deregister(service *bridge.Service) error {
 	var err error
-	base_path := r.path[1:] + "/" + service.Name
-	for k, _ := range service.Attrs {
-		path := base_path + "/" + k
-		_, err = r.client.KV().Delete(path, nil)
-	}
+	path := r.path[1:] + "/" + service.Name
+	_, err = r.client.KV().DeleteTree(path, nil)
 	if err != nil {
 		return err
 	}
