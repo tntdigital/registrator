@@ -64,19 +64,20 @@ func (r *ConsulMetaAdapter) Register(service *bridge.Service) error {
 
 	var err error
 
-	err = r.client.Agent().ServiceRegister(registration)
-	if err != nil {
-		log.Println("consulmeta: failed to register service:", err)
-		return err
-	}
-
 	base_path := r.path[1:] + "/" + service.Name
 	for k, v := range service.Attrs {
 		path := base_path + "/" + k
 		_, err = r.client.KV().Put(&consulapi.KVPair{Key: path, Value: []byte(v)}, nil)
 	}
 	if err != nil {
+		log.Println("consulmeta: failed to register metadata for service:", err)
+		return err
+	}
+
+	err = r.client.Agent().ServiceRegister(registration)
+	if err != nil {
 		log.Println("consulmeta: failed to register service:", err)
+		return err
 	}
 	return err
 }
@@ -109,12 +110,20 @@ func (r *ConsulMetaAdapter) buildCheck(service *bridge.Service) *consulapi.Agent
 
 func (r *ConsulMetaAdapter) Deregister(service *bridge.Service) error {
 	var err error
-	path := r.path[1:] + "/" + service.Name
-	_, err = r.client.KV().DeleteTree(path, nil)
+
+	err = r.client.Agent().ServiceDeregister(service.ID)
 	if err != nil {
+		log.Println("consulmeta: failed to deregister service:", err)
 		return err
 	}
-	return r.client.Agent().ServiceDeregister(service.ID)
+
+	// Only remove KV data when there are no more services with the same name
+	var services, _, _ = r.client.Catalog().Service(service.Name, "", nil)
+	if len(services) == 0 {
+		path := r.path[1:] + "/" + service.Name
+		_, err = r.client.KV().DeleteTree(path, nil)
+	}
+	return err
 }
 
 func (r *ConsulMetaAdapter) Refresh(service *bridge.Service) error {
