@@ -120,7 +120,7 @@ func (r *ConsulMetaAdapter) Deregister(service *bridge.Service) error {
 	// Only remove KV data when there are no more services with the same name
 	var services, _, _ = r.client.Catalog().Service(service.Name, "", nil)
 	if len(services) == 0 {
-		path := r.path[1:] + "/" + service.Name
+		path := r.path[1:] + "/" + service.Name + "/"
 		_, err = r.client.KV().DeleteTree(path, nil)
 	}
 	return err
