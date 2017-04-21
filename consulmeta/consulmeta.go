@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"path"
 
 	"github.com/gliderlabs/registrator/bridge"
 	consulapi "github.com/hashicorp/consul/api"
@@ -64,9 +65,14 @@ func (r *ConsulMetaAdapter) Register(service *bridge.Service) error {
 
 	var err error
 
-	base_path := r.path[1:] + "/" + service.Name
+	base_path := path.Join(r.path, service.Name)
+	// Strip off leading forward slash
+	// because that's not allowed by Consul's KV store
+	if strings.HasPrefix(base_path, "/") {
+		base_path = base_path[1:]
+	}
 	for k, v := range service.Attrs {
-		path := base_path + "/" + k
+		path := path.Join(base_path, k)
 		_, err = r.client.KV().Put(&consulapi.KVPair{Key: path, Value: []byte(v)}, nil)
 	}
 	if err != nil {
